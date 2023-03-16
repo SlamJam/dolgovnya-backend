@@ -15,7 +15,7 @@ CREATE TABLE accounting_entries (
     owner_accounting BIGINT NOT NULL REFERENCES base_accounting(id) ON DELETE CASCADE,
     user_from BIGINT NOT NULL REFERENCES users(id),
     user_to BIGINT NOT NULL REFERENCES users(id),
-    value BIGINT CHECK (value <> 0),
+    amount BIGINT CHECK (amount <> 0),
     CONSTRAINT no_self_to_self CHECK (user_from != user_to)
 );
 

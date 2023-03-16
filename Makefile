@@ -28,3 +28,7 @@ generate\:\:proto:
 	# @ find internal/pb -delete
 	# @ find internal/swagger -name '*.swagger.json' -delete
 	@ buf generate api/
+
+.PHONY:
+build:
+	go build -o ./bin/dolgovnya .
