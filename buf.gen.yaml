@@ -1,0 +1,37 @@
+version: v1
+managed:
+  enabled: true
+  go_package_prefix:
+    default: github.com/SlamJam/dolgovnya-backend/internal/pb
+    except:
+      - buf.build/googleapis/googleapis
+plugins:
+  - plugin: buf.build/protocolbuffers/go
+    out: internal/pb
+    opt:
+      - paths=source_relative
+  - plugin: buf.build/grpc/go
+    out: internal/pb
+    opt:
+      - paths=source_relative
+  - plugin: buf.build/grpc-ecosystem/gateway
+    out: internal/pb
+    opt:
+      - logtostderr=true
+      - paths=source_relative
+      - generate_unbound_methods=true
+  - plugin: buf.build/grpc-ecosystem/openapiv2
+    out: internal/swagger
+    opt:
+      - generate_unbound_methods=true
+      - allow_merge=true
+    # strategy: all
+  - plugin: buf.build/community/planetscale-vtprotobuf
+    out: internal/pb
+    opt:
+      - features=marshal+unmarshal+size+pool
+      - paths=source_relative
+  - plugin: buf.build/bufbuild/connect-go
+    out: internal/pb
+    opt:
+      - paths=source_relative
