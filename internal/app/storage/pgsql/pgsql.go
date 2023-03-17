@@ -1,6 +1,7 @@
 package pgsql
 
 import (
+	"context"
 	"time"
 
 	"github.com/Masterminds/squirrel"
@@ -28,6 +29,10 @@ func NewStorage(dsn string) (*Storage, error) {
 	return &Storage{
 		pool: db,
 	}, nil
+}
+
+func (s *Storage) Close(context.Context) error {
+	return s.pool.Close()
 }
 
 func GetDB(uri string) (*sqlx.DB, error) {
