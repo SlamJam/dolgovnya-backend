@@ -9,10 +9,15 @@ import (
 )
 
 var (
-	ErrNoShares          = errors.New("shares are empty")
-	ErrZeroQuantity      = errors.New("quantity is zero")
-	ErrDiscrepancy       = errors.New("total price and total payments must be equal")
-	ErrInternalAssertion = errors.New("internal assertion")
+	ErrNoShares              = errors.New("shares are empty")
+	ErrZeroQuantity          = errors.New("quantity is zero")
+	ErrDiscrepancy           = errors.New("total price and total payments must be equal")
+	ErrInternalAssertion     = errors.New("internal assertion")
+	ErrTotalDecimalPrecision = errors.Wrap(ErrInternalAssertion, "decimal precision of total")
+)
+
+const (
+	maxIntFloat64 = float64(1 << 53)
 )
 
 type BillShare struct {
@@ -175,14 +180,10 @@ func (b *Bill) ToInvoices() ([]Invoice, error) {
 		return nil, errors.Wrap(err, "fail construct Invoices")
 	}
 
-	// исправление неточности Decimal'ов. 100 на троих это 33.33, 33.33 и 33.33,
+	// Исправление неточности Decimal'ов. 100 на троих это 33.33, 33.33 и 33.33,
 	// итого не достаёт копейки 0.01. Исправленное: 33.33, 33.33 и 33.34 (33.33 + 0.01)
-	invoices, err = FixInvocesTotal(invoices, b.TotalPayment().Decimal)
-	if err != nil {
-		return nil, errors.Wrap(multierr.Append(ErrInternalAssertion, err), "error at fix total")
-	}
 
-	// Выходные проверки инвариантов
+	// Считаем сумму выданных денег. Т.к. баланс нулевой, то это равно и сумму одолженых.
 	totalCredit := NewMoneyRat()
 	for _, v := range balancesMap {
 		if v.Rat.Cmp(zeroRat) == 1 {
@@ -190,14 +191,15 @@ func (b *Bill) ToInvoices() ([]Invoice, error) {
 		}
 	}
 
-	totalInvoicesValue := NewMoney()
-	for _, invoice := range invoices {
-		totalInvoicesValue.Decimal = totalInvoicesValue.Add(invoice.Value.Decimal)
-	}
+	// в округлении накидываем в сторону должников
+	totalCreditDecimal := NewMoneyFromBig(totalCredit.Num()).
+		Div(
+			NewMoneyFromBig(totalCredit.Denom()).Decimal,
+		).RoundCeil(MoneyPrecision)
 
-	d := NewMoneyRat().Sub(totalCredit.Rat, totalInvoicesValue.Rat())
-	if d.Cmp(zeroRat) != 0 {
-		return nil, errors.Wrap(ErrInternalAssertion, "fail rational final test")
+	invoices, err = FixInvocesTotal(invoices, totalCreditDecimal)
+	if err != nil {
+		return nil, errors.Wrap(multierr.Append(ErrInternalAssertion, err), "error at fix total")
 	}
 
 	return invoices, nil

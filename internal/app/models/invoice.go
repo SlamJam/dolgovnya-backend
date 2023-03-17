@@ -28,7 +28,7 @@ func InvoicesFromBalances(balancesMap map[UserID]MoneyRat) ([]Invoice, error) {
 			continue
 		}
 
-		balances = append(balances, userMoneyRat{UserID: userID, Amount: v})
+		balances = append(balances, userMoneyRat{UserID: userID, Amount: v.Copy()})
 		total.Add(total.Rat, v.Rat)
 	}
 
@@ -55,21 +55,23 @@ func InvoicesFromBalances(balancesMap map[UserID]MoneyRat) ([]Invoice, error) {
 			return nil, errors.Wrap(ErrInternalAssertion, "debt is not negative")
 		}
 
-		var debited MoneyRat
-		switch credit.Amount.Cmp(debt.Amount.Rat) {
-		case -1, 0:
-			debited = credit.Amount
-		case 1:
-			debited = debt.Amount
-		}
+		creditAbs := NewMoneyRat()
+		creditAbs.Abs(credit.Amount.Rat)
+		debtAbs := NewMoneyRat()
+		debtAbs.Abs(debt.Amount.Rat)
 
-		decimalAmount := decimal.NewFromBigInt(debited.Num(), 0).
-			Div(decimal.NewFromBigInt(debited.Denom(), 0))
+		var debited MoneyRat
+		switch creditAbs.Cmp(debtAbs.Rat) {
+		case -1, 0:
+			debited = creditAbs
+		case 1:
+			debited = debtAbs
+		}
 
 		invoices = append(invoices, Invoice{
 			UserFrom: credit.UserID,
 			UserTo:   debt.UserID,
-			Value:    Money{decimalAmount},
+			Value:    debited.Money(),
 		})
 
 		credit.Amount.Sub(credit.Amount.Rat, debited.Rat)
@@ -143,8 +145,7 @@ func FixInvocesTotal(invoices []Invoice, targetTotal decimal.Decimal) ([]Invoice
 		totalInvoicesValue.Decimal = totalInvoicesValue.Add(invoice.Value.Decimal)
 	}
 
-	d := targetTotal.Sub(totalInvoicesValue.Decimal)
-	if !d.IsZero() {
+	if !targetTotal.Equal(totalInvoicesValue.Decimal) {
 		return nil, errors.Wrap(ErrInternalAssertion, "fail decimal final test")
 	}
 
