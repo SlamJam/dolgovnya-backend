@@ -9,19 +9,19 @@ const (
 	Scarcity
 )
 
-type Balance struct {
+type Account struct {
 	Credit MoneyRat
 	Debit  MoneyRat
 }
 
-func NewBalance() *Balance {
-	return &Balance{
+func NewBalance() *Account {
+	return &Account{
 		Debit:  NewMoneyRat(),
 		Credit: NewMoneyRat(),
 	}
 }
 
-func (b *Balance) AbsNet() (MoneyRat, NetKind) {
+func (b *Account) AbsNet() (MoneyRat, NetKind) {
 	var kind NetKind
 
 	diff := NewMoneyRat().Sub(b.Credit.Rat, b.Debit.Rat)
@@ -37,17 +37,17 @@ func (b *Balance) AbsNet() (MoneyRat, NetKind) {
 	return MoneyRat{NewMoneyRat().Abs(diff)}, kind
 }
 
-func (b *Balance) IsSurplus() (MoneyRat, bool) {
+func (b *Account) IsSurplus() (MoneyRat, bool) {
 	v, kind := b.AbsNet()
 	return v, kind == Surplus
 }
 
-func (b *Balance) IsScarcity() (MoneyRat, bool) {
+func (b *Account) IsScarcity() (MoneyRat, bool) {
 	v, kind := b.AbsNet()
 	return v, kind == Scarcity
 }
 
-func (b *Balance) IsZero() bool {
+func (b *Account) IsZero() bool {
 	_, kind := b.AbsNet()
 	return kind == Zero
 }
