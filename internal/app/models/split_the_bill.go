@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/pkg/errors"
@@ -17,7 +18,8 @@ var (
 )
 
 const (
-	maxIntFloat64 = float64(1 << 53)
+	maxIntFloat64     = float64(1 << 53)
+	BillSchemaVersion = 1
 )
 
 type BillShare struct {
@@ -73,11 +75,18 @@ func (bi *BillItem) SharePricesByUser() map[UserID]MoneyRat {
 
 type BillID int64
 
+func (bid BillID) String() string {
+	return fmt.Sprintf("BillID(%d)", bid)
+}
+
 type Bill struct {
-	ID            BillID        `json:"-"`
-	Items         []BillItem    `json:",omitempty"`
-	Payments      []BillPayment `json:",omitempty"`
-	SchemaVersion uint          `json:"-"`
+	ID       BillID        `json:"-"`
+	Items    []BillItem    `json:",omitempty"`
+	Payments []BillPayment `json:",omitempty"`
+}
+
+func (b *Bill) GetSchemaVersion() int {
+	return BillSchemaVersion
 }
 
 func (b *Bill) TotalPayment() Money {

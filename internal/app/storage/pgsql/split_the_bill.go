@@ -76,7 +76,7 @@ func (s *Storage) SaveSplittedBill(ctx context.Context, ownerID models.UserID, b
 		Values(
 			ownerID,
 			owningObjID,
-			bill.SchemaVersion,
+			bill.GetSchemaVersion(),
 			dbBill(bill),
 		).
 		Suffix(`RETURNING "id"`).

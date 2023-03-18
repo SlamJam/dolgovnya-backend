@@ -16,3 +16,17 @@ type SplitTheBillStorage interface {
 	GetBills(context.Context, []models.BillID) ([]models.Bill, error)
 	DeleteBills(context.Context, []models.BillID) ([]models.Bill, error)
 }
+
+type SplitTheBillService struct {
+	storage SplitTheBillStorage
+}
+
+func NewSplitTheBillService(storage SplitTheBillStorage) *SplitTheBillService {
+	return &SplitTheBillService{
+		storage: storage,
+	}
+}
+
+func (s *SplitTheBillService) SaveBill(ctx context.Context, userID models.UserID, bill models.Bill) (models.BillID, error) {
+	return s.storage.SaveSplittedBill(ctx, userID, bill)
+}
