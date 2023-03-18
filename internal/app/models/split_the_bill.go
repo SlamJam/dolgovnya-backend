@@ -74,9 +74,10 @@ func (bi *BillItem) SharePricesByUser() map[UserID]MoneyRat {
 type BillID int64
 
 type Bill struct {
-	ID       BillID        `json:"-"`
-	Items    []BillItem    `json:",omitempty"`
-	Payments []BillPayment `json:",omitempty"`
+	ID            BillID        `json:"-"`
+	Items         []BillItem    `json:",omitempty"`
+	Payments      []BillPayment `json:",omitempty"`
+	SchemaVersion uint          `json:"-"`
 }
 
 func (b *Bill) TotalPayment() Money {

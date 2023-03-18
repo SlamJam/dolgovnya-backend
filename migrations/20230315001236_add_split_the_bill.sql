@@ -3,9 +3,14 @@
 -- +goose Up
 -- +goose StatementBegin
 CREATE TABLE accounting_split_the_bill (
-    owner_id BIGINT NOT NULL REFERENCES users(id),
+    id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    user_id BIGINT NOT NULL,
+    owning_object_id BIGINT NOT NULL,
+    FOREIGN KEY (owning_object_id, user_id) REFERENCES owner_objects(id, user_id) ON DELETE CASCADE ON UPDATE CASCADE,
+
+    schema_version INTEGER NOT NULL,
     bill jsonb
-) INHERITS (base_accounting);
+);
 -- +goose StatementEnd
 
 -- +goose Down

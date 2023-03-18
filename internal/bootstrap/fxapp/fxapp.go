@@ -3,6 +3,7 @@ package fxapp
 import (
 	"github.com/SlamJam/dolgovnya-backend/internal/app/services"
 	"github.com/SlamJam/dolgovnya-backend/internal/app/storage/pgsql"
+	"github.com/SlamJam/dolgovnya-backend/internal/bootstrap/fxconfig"
 	"github.com/SlamJam/dolgovnya-backend/internal/bootstrap/fxstorage"
 	"go.uber.org/fx"
 )
@@ -13,5 +14,6 @@ func NewSplitTheBillStorage(lc fx.Lifecycle, s *pgsql.Storage) services.SplitThe
 
 var Module = fx.Module("app",
 	fxstorage.Module,
+	fxconfig.Module,
 	fx.Provide(NewSplitTheBillStorage),
 )

@@ -36,35 +36,62 @@ type dbInvoice struct {
 	Amount     models.Money  `db:"amount"`
 }
 
-func (s *Storage) SaveSplittedBill(ctx context.Context, bill models.Bill) (models.BillID, error) {
+func (s *Storage) SaveSplittedBill(ctx context.Context, ownerID models.UserID, bill models.Bill) (models.BillID, error) {
 	invoices, err := bill.ToInvoices()
 	if err != nil {
 		return 0, errors.WithStack(err)
 	}
 
-	tx, err := s.pool.BeginTx(ctx, nil)
+	tx, err := s.pool.BeginTxx(ctx, nil)
+	if err != nil {
+		return 0, errors.WithStack(err)
+	}
 	defer tx.Rollback()
+
+	var owningObjID int64
+	psql.Insert("owner_objects").
+		Columns(
+			"user_id",
+		).
+		Values(
+			ownerID,
+		).
+		Suffix(`RETURNING "id"`).
+		RunWith(tx).
+		QueryRow().
+		Scan(&owningObjID)
 
 	if err != nil {
 		return 0, errors.WithStack(err)
 	}
 
-	row := psql.Insert("accounting_split_the_bill").
-		Columns("owner_id", "bill").
-		Values("asurpin", dbBill(bill)).
-		Suffix(`RETURNING "id"`).
-		RunWith(tx).QueryRow()
-
 	var billID models.BillID
+	psql.Insert("accounting_split_the_bill").
+		Columns(
+			"user_id",
+			"owning_object_id",
+			"schema_version",
+			"bill",
+		).
+		Values(
+			ownerID,
+			owningObjID,
+			bill.SchemaVersion,
+			dbBill(bill),
+		).
+		Suffix(`RETURNING "id"`).
+		RunWith(tx).
+		QueryRow().
+		Scan(&billID)
 
-	err = row.Scan(&billID)
 	if err != nil {
 		return 0, errors.WithStack(err)
 	}
 
 	q := psql.Insert("accounting_entries").
 		Columns(
-			"owner_accounting",
+			"user_id",
+			"owning_object_id",
 			"user_from",
 			"user_to",
 			"amount",
@@ -72,18 +99,22 @@ func (s *Storage) SaveSplittedBill(ctx context.Context, bill models.Bill) (model
 
 	for _, invoice := range invoices {
 		q = q.Values(
-			billID,
+			ownerID,
+			owningObjID,
 			invoice.UserFrom,
 			invoice.UserTo,
-			invoice.Value,
+			invoice.Value.Decimal,
 		)
 	}
 
+	sql, args := q.MustSql()
+	_, _ = sql, args
+
 	rows, err := q.RunWith(tx).Query()
-	defer rows.Close()
 	if err != nil {
 		return 0, errors.WithStack(err)
 	}
+	defer rows.Close()
 
 	err = tx.Commit()
 	if err != nil {
