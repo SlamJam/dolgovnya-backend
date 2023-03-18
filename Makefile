@@ -1,6 +1,11 @@
 
 GOLANGBIN:=$(shell go env GOPATH)/bin
 GOOSE:=${GOLANGBIN}/goose
+USE_PODMAN?=1
+
+# ===
+
+COMPOSE:=$(if $(USE_PODMAN),podman-compose,"docker compose")
 
 define assert_nonempty
 	$(if $(strip $(1)),,$(error $(2)))
@@ -32,3 +37,12 @@ generate\:\:proto:
 .PHONY:
 build:
 	go build -o ./bin/dolgovnya .
+
+local\:\:up:
+	@ ${COMPOSE} -f .local/docker-compose.yaml up -d
+
+local\:\:down:
+	@ ${COMPOSE} -f .local/docker-compose.yaml down
+
+local\:\:prune:
+	@ ${COMPOSE} -f .local/docker-compose.yaml down -v
