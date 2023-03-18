@@ -180,8 +180,9 @@ func (b *Bill) ToInvoices() ([]Invoice, error) {
 		return nil, errors.Wrap(err, "fail construct Invoices")
 	}
 
-	// Исправление неточности Decimal'ов. 100 на троих это 33.33, 33.33 и 33.33,
-	// итого не достаёт копейки 0.01. Исправленное: 33.33, 33.33 и 33.34 (33.33 + 0.01)
+	// Исправление неточности конечной суммы при переходе от Rational к Decimal.
+	// Напримео, 100 на троих это 33.33, 33.33 и 33.33, итого не достаёт копейки 0.01.
+	// Исправленное: 33.33, 33.33 и 33.34 (33.33 + 0.01).
 
 	// Считаем сумму выданных денег. Т.к. баланс нулевой, то это равно и сумму одолженых.
 	totalCredit := NewMoneyRat()
@@ -193,12 +194,9 @@ func (b *Bill) ToInvoices() ([]Invoice, error) {
 
 	// в округлении накидываем в сторону должников
 	totalCreditDecimal := NewMoneyFromBig(totalCredit.Num()).
-		Div(
-			NewMoneyFromBig(totalCredit.Denom()).Decimal,
-		).RoundCeil(MoneyPrecision).Truncate(MoneyPrecision)
-
-	exp := totalCreditDecimal.Exponent()
-	_ = exp
+		Div(NewMoneyFromBig(totalCredit.Denom()).Decimal).
+		RoundCeil(MoneyPrecision).
+		Truncate(MoneyPrecision)
 
 	invoices, err = FixInvocesTotal(invoices, totalCreditDecimal)
 	if err != nil {

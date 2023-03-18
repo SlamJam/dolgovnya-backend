@@ -3,6 +3,7 @@ package models
 import (
 	"math"
 	"math/big"
+	"math/rand"
 	"sort"
 
 	"github.com/pkg/errors"
@@ -134,21 +135,15 @@ func FixInvocesTotal(invoices []Invoice, targetTotal decimal.Decimal) ([]Invoice
 	fixStep = decimal.Max(fixStep.Abs(), minStep.Abs()).
 		Mul(decimal.NewFromInt(int64(fixStep.Sign())))
 
-	currentFix := discrepancy.Copy()
-	for i := 0; i < invoiceCount && !currentFix.IsZero(); i++ {
-		var fixValue decimal.Decimal
-		if i != invoiceCount-1 {
-			fixValue = currentFix
-		} else {
-			fixValue = fixStep
-		}
-
-		invoices[i].Value = Money{invoices[i].Value.Add(fixValue)}
-		currentFix = currentFix.Sub(fixValue)
+	remainderFix := discrepancy.Copy()
+	for i := 0; i < invoiceCount && !remainderFix.IsZero(); i++ {
+		invoices[i].Value = Money{invoices[i].Value.Add(fixStep)}
+		remainderFix = remainderFix.Sub(fixStep)
 	}
 
-	if !currentFix.IsZero() {
-		return nil, errors.Wrap(ErrInternalAssertion, "remainder is not zero")
+	if !remainderFix.IsZero() {
+		index := rand.Int() % invoiceCount
+		invoices[index].Value = Money{invoices[index].Value.Add(remainderFix)}
 	}
 
 	// проверка суммы инвойсов после исправления
@@ -156,5 +151,12 @@ func FixInvocesTotal(invoices []Invoice, targetTotal decimal.Decimal) ([]Invoice
 		return nil, errors.Wrap(ErrInternalAssertion, "fail decimal final test")
 	}
 
-	return invoices, nil
+	filtered := make([]Invoice, 0, len(invoices))
+	for _, inv := range invoices {
+		if !inv.Value.IsZero() {
+			filtered = append(filtered, inv)
+		}
+	}
+
+	return filtered, nil
 }
