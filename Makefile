@@ -30,8 +30,8 @@ migration\:\:new:
 
 .PHONY: generate\:\:proto
 generate\:\:proto:
-	@ find internal/pb
-	@ find internal/swagger -name '*.swagger.json'
+	@ find internal/pb -mindepth 1 -delete
+	@ find internal/swagger -name '*.swagger.json' -type f -mindepth 1 -maxdepth 1 -delete
 	@ ${GOLANGBIN}/buf generate api/
 
 .PHONY: build
