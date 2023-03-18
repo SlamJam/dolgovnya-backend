@@ -195,7 +195,10 @@ func (b *Bill) ToInvoices() ([]Invoice, error) {
 	totalCreditDecimal := NewMoneyFromBig(totalCredit.Num()).
 		Div(
 			NewMoneyFromBig(totalCredit.Denom()).Decimal,
-		).RoundCeil(MoneyPrecision)
+		).RoundCeil(MoneyPrecision).Truncate(MoneyPrecision)
+
+	exp := totalCreditDecimal.Exponent()
+	_ = exp
 
 	invoices, err = FixInvocesTotal(invoices, totalCreditDecimal)
 	if err != nil {

@@ -1,6 +1,7 @@
 package models
 
 import (
+	"math"
 	"math/big"
 	"sort"
 
@@ -101,12 +102,21 @@ func InvoicesFromBalances(balancesMap map[UserID]MoneyRat) ([]Invoice, error) {
 	return invoices, nil
 }
 
-func FixInvocesTotal(invoices []Invoice, targetTotal decimal.Decimal) ([]Invoice, error) {
-	invoicesTotal := NewMoney()
+func InvoicesTotal(invoices []Invoice) Money {
+	total := NewMoney()
 	for _, invoice := range invoices {
-		invoicesTotal.Decimal = invoicesTotal.Add(invoice.Value.Decimal)
+		total.Decimal = total.Add(invoice.Value.Decimal)
 	}
 
+	return total
+}
+
+func FixInvocesTotal(invoices []Invoice, targetTotal decimal.Decimal) ([]Invoice, error) {
+	if math.Abs(float64(targetTotal.Exponent())) > MoneyPrecision {
+		return nil, errors.New("target's exponent greater then Money's")
+	}
+
+	invoicesTotal := InvoicesTotal(invoices)
 	discrepancy := targetTotal.Sub(invoicesTotal.Decimal)
 
 	if discrepancy.IsZero() {
@@ -115,37 +125,34 @@ func FixInvocesTotal(invoices []Invoice, targetTotal decimal.Decimal) ([]Invoice
 
 	invoiceCount := len(invoices)
 	fixStep := discrepancy.DivRound(decimal.NewFromInt(int64(invoiceCount)), targetTotal.Exponent())
-	fixThreshold := decimal.New(int64(fixStep.Sign()), targetTotal.Exponent())
+	minStep := decimal.New(int64(fixStep.Sign()), MoneyPrecision)
 
-	if discrepancy.Abs().Cmp(fixThreshold.Abs()) == -1 {
-		return nil, errors.Wrapf(ErrInternalAssertion, "fix value (:s) is less than (%s)", discrepancy, fixThreshold)
+	if discrepancy.Abs().Cmp(minStep.Abs()) == -1 {
+		return nil, errors.Wrapf(ErrInternalAssertion, "fix value (:s) is less than (%s)", discrepancy, minStep)
 	}
 
-	if fixStep.Sign() == 1 {
-		fixStep = decimal.Max(fixStep, fixThreshold)
-	} else {
-		fixStep = decimal.Min(fixStep, fixThreshold)
-	}
+	fixStep = decimal.Max(fixStep.Abs(), minStep.Abs()).
+		Mul(decimal.NewFromInt(int64(fixStep.Sign())))
 
-	currentFix := decimal.New(0, 0)
-	for i := range invoices {
-		inv := &invoices[i]
-
+	currentFix := discrepancy.Copy()
+	for i := 0; i < invoiceCount && !currentFix.IsZero(); i++ {
+		var fixValue decimal.Decimal
 		if i != invoiceCount-1 {
-			invoices[i].Value = Money{inv.Value.Add(fixStep)}
-			currentFix = currentFix.Add(fixStep)
+			fixValue = currentFix
 		} else {
-			invoices[i].Value = Money{inv.Value.Add(discrepancy.Sub(currentFix))}
+			fixValue = fixStep
 		}
+
+		invoices[i].Value = Money{invoices[i].Value.Add(fixValue)}
+		currentFix = currentFix.Sub(fixValue)
+	}
+
+	if !currentFix.IsZero() {
+		return nil, errors.Wrap(ErrInternalAssertion, "remainder is not zero")
 	}
 
 	// проверка суммы инвойсов после исправления
-	totalInvoicesValue := NewMoney()
-	for _, invoice := range invoices {
-		totalInvoicesValue.Decimal = totalInvoicesValue.Add(invoice.Value.Decimal)
-	}
-
-	if !targetTotal.Equal(totalInvoicesValue.Decimal) {
+	if !targetTotal.Equal(InvoicesTotal(invoices).Decimal) {
 		return nil, errors.Wrap(ErrInternalAssertion, "fail decimal final test")
 	}
 
