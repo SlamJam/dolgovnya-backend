@@ -4,7 +4,7 @@ GOOSE:=${GOLANGBIN}/goose
 USE_PODMAN?=1
 
 # ===
-
+DOCKER:=$(if $(USE_PODMAN),podman,docker)
 COMPOSE:=$(if $(USE_PODMAN),podman-compose,"docker compose")
 
 define assert_nonempty
@@ -34,15 +34,22 @@ generate\:\:proto:
 	# @ find internal/swagger -name '*.swagger.json' -delete
 	@ buf generate api/
 
-.PHONY:
+.PHONY: build
 build:
 	go build -o ./bin/dolgovnya .
 
+.PHONY: local\:\:up
 local\:\:up:
 	@ ${COMPOSE} -f .local/docker-compose.yaml up -d
 
+.PHONY: local\:\:down
 local\:\:down:
 	@ ${COMPOSE} -f .local/docker-compose.yaml down
 
+.PHONY: local\:\:prune
 local\:\:prune:
 	@ ${COMPOSE} -f .local/docker-compose.yaml down -v
+
+.PHONY: docker\:\:build
+docker\:\:build:
+	@ ${DOCKER} build . -f .build/Dockerfile
