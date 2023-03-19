@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/SlamJam/dolgovnya-backend/internal/bootstrap/fxhttp"
@@ -24,7 +23,7 @@ var rootCmd = &cobra.Command{
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
+		rootCmd.PrintErr(err)
 		os.Exit(1)
 	}
 }

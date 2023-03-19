@@ -9,7 +9,6 @@ import (
 	"github.com/SlamJam/dolgovnya-backend/migrations"
 	"github.com/pressly/goose/v3"
 	"github.com/spf13/cobra"
-	"go.uber.org/fx"
 )
 
 func init() {
@@ -30,42 +29,41 @@ var migrationCmd = &cobra.Command{
 func prepareGoose() error {
 	goose.SetBaseFS(migrations.FS)
 
+	// TODO:
+	// goose.SetLogger()
+
 	return goose.SetDialect("postgres")
 }
 
-func prepareDB(ctx context.Context) (*sql.DB, error) {
+func prepareDB(ctx context.Context) (_ *sql.DB, _ func() error, resultError error) {
 	var cfg config.Config
-	app := fx.New(
-		fxapp.Module,
-		fx.Populate(&cfg),
-	)
 
-	if err := app.Start(ctx); err != nil {
-		return nil, err
+	stop, err := fxapp.PopulateFromApp(ctx, &cfg)
+	if err != nil {
+		return nil, nil, err
 	}
-	defer app.Stop(ctx)
+	defer func() {
+		if resultError != nil {
+			stop()
+		}
+	}()
 
 	db, err := sql.Open("pgx", cfg.DSN)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return db, nil
+	return db, stop, nil
 }
 
-func dieOnError(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
-
-func mustPrepareGooseAndDB(ctx context.Context) *sql.DB {
-	db, err := prepareDB(ctx)
+func mustPrepareGooseAndDB(ctx context.Context) (*sql.DB, func() error) {
+	db, stop, err := prepareDB(ctx)
 	dieOnError(err)
 
 	err = prepareGoose()
 	dieOnError(err)
-	return db
+
+	return db, stop
 }
 
 var migrationUpCmd = &cobra.Command{
@@ -76,11 +74,12 @@ var migrationUpCmd = &cobra.Command{
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		var err error
-		db := mustPrepareGooseAndDB(ctx)
+		db, stop := mustPrepareGooseAndDB(ctx)
+		defer stop()
 
-		err = goose.Up(db, ".")
-		dieOnError(err)
+		if err := goose.Up(db, "."); err != nil {
+			cmd.PrintErr(err)
+		}
 	},
 }
 
@@ -92,11 +91,12 @@ var migrationUpByOneCmd = &cobra.Command{
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		var err error
-		db := mustPrepareGooseAndDB(ctx)
+		db, stop := mustPrepareGooseAndDB(ctx)
+		defer stop()
 
-		err = goose.UpByOne(db, ".")
-		dieOnError(err)
+		if err := goose.UpByOne(db, "."); err != nil {
+			cmd.PrintErr(err)
+		}
 	},
 }
 
@@ -108,11 +108,12 @@ var migrationVersionCmd = &cobra.Command{
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		var err error
-		db := mustPrepareGooseAndDB(ctx)
+		db, stop := mustPrepareGooseAndDB(ctx)
+		defer stop()
 
-		err = goose.Version(db, ".")
-		dieOnError(err)
+		if err := goose.Version(db, "."); err != nil {
+			cmd.PrintErr(err)
+		}
 	},
 }
 
@@ -124,10 +125,11 @@ var migrationStatusCmd = &cobra.Command{
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		var err error
-		db := mustPrepareGooseAndDB(ctx)
+		db, stop := mustPrepareGooseAndDB(ctx)
+		defer stop()
 
-		err = goose.Status(db, ".")
-		dieOnError(err)
+		if err := goose.Status(db, "."); err != nil {
+			cmd.PrintErr(err)
+		}
 	},
 }
