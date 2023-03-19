@@ -28,8 +28,17 @@ migration\:\:new:
 	$(call assert_nonempty, ${name}, "Must set migration name as name=my-super-migration")
 	@ ${GOLANGBIN}/goose -dir migrations create "${name}" sql
 
-.PHONY: generate\:\:proto
-generate\:\:proto:
+.PHONY: proto\:\:format
+proto\:\:format:
+	@ ${GOLANGBIN}/buf format api/ -w
+
+
+.PHONY: proto\:\:lint
+proto\:\:lint:
+	@ ${GOLANGBIN}/buf lint api/
+
+.PHONY: proto\:\:generate
+proto\:\:generate: proto\:\:lint
 	@ find internal/pb -mindepth 1 -delete
 	@ find internal/swagger -name '*.swagger.json' -type f -mindepth 1 -maxdepth 1 -delete
 	@ ${GOLANGBIN}/buf generate api/

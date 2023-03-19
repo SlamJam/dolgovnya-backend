@@ -7,7 +7,7 @@ import (
 
 	"github.com/SlamJam/dolgovnya-backend/internal/components"
 	connect_handlers "github.com/SlamJam/dolgovnya-backend/internal/connect-handlers"
-	"github.com/SlamJam/dolgovnya-backend/internal/pb/pbconnect"
+	"github.com/SlamJam/dolgovnya-backend/internal/pb/dolgovnya/split_the_bill/v1/split_the_billv1connect"
 	"github.com/SlamJam/go-libs/component"
 	"go.uber.org/fx"
 	"golang.org/x/net/http2"
@@ -20,7 +20,7 @@ func NewConnectServer(lc fx.Lifecycle) ConnectServer {
 	addr := ":8085"
 	mux := http.NewServeMux()
 	// The generated constructors return a path and a plain net/http handler.
-	mux.Handle(pbconnect.NewSplitTheBillServiceHandler(&connect_handlers.SplitTheBillServiceHandler{}))
+	mux.Handle(split_the_billv1connect.NewSplitTheBillServiceHandler(&connect_handlers.SplitTheBillServiceHandler{}))
 
 	// For gRPC clients, it's convenient to support HTTP/2 without TLS. You can
 	// avoid x/net/http2 by using http.ListenAndServeTLS.

@@ -1,12 +1,12 @@
 {
   "swagger": "2.0",
   "info": {
-    "title": "internal.proto",
+    "title": "dolgovnya/internal/v1/internal.proto",
     "version": "version not set"
   },
   "tags": [
     {
-      "name": "Internal"
+      "name": "InternalService"
     },
     {
       "name": "SplitTheBillService"
@@ -19,14 +19,14 @@
     "application/json"
   ],
   "paths": {
-    "/Internal/NewUser": {
+    "/dolgovnya.internal.v1.InternalService/NewUser": {
       "post": {
-        "operationId": "Internal_NewUser",
+        "operationId": "InternalService_NewUser",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/NewUserResponse"
+              "$ref": "#/definitions/v1NewUserResponse"
             }
           },
           "default": {
@@ -42,24 +42,23 @@
             "in": "body",
             "required": true,
             "schema": {
-              "type": "object",
-              "properties": {}
+              "$ref": "#/definitions/v1NewUserRequest"
             }
           }
         ],
         "tags": [
-          "Internal"
+          "InternalService"
         ]
       }
     },
-    "/SplitTheBillService/NewBillSplit": {
+    "/dolgovnya.split_the_bill.v1.SplitTheBillService/NewBill": {
       "post": {
-        "operationId": "SplitTheBillService_NewBillSplit",
+        "operationId": "SplitTheBillService_NewBill",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/SplitResponse"
+              "$ref": "#/definitions/v1NewBillResponse"
             }
           },
           "default": {
@@ -75,7 +74,7 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/SplitRequest"
+              "$ref": "#/definitions/v1NewBillRequest"
             }
           }
         ],
@@ -86,96 +85,6 @@
     }
   },
   "definitions": {
-    "BillItem": {
-      "type": "object",
-      "properties": {
-        "title": {
-          "type": "string"
-        },
-        "price": {
-          "type": "string",
-          "format": "int64"
-        },
-        "type": {
-          "type": "string",
-          "format": "int64"
-        },
-        "stakes": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/BillStake"
-          }
-        }
-      }
-    },
-    "BillShare": {
-      "type": "object",
-      "properties": {
-        "userId": {
-          "type": "string",
-          "format": "int64"
-        },
-        "value": {
-          "type": "string",
-          "format": "int64"
-        }
-      }
-    },
-    "BillStake": {
-      "type": "object",
-      "properties": {
-        "userId": {
-          "type": "string",
-          "format": "int64"
-        },
-        "p": {
-          "type": "string",
-          "format": "uint64"
-        },
-        "q": {
-          "type": "string",
-          "format": "uint64"
-        }
-      }
-    },
-    "NewUserResponse": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string",
-          "format": "int64"
-        }
-      }
-    },
-    "SplitRequest": {
-      "type": "object",
-      "properties": {
-        "items": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/BillItem"
-          }
-        },
-        "shares": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "$ref": "#/definitions/BillShare"
-          }
-        }
-      }
-    },
-    "SplitResponse": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string",
-          "format": "uint64"
-        }
-      }
-    },
     "protobufAny": {
       "type": "object",
       "properties": {
@@ -201,6 +110,127 @@
             "type": "object",
             "$ref": "#/definitions/protobufAny"
           }
+        }
+      }
+    },
+    "typeDecimal": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "string",
+          "description": "The decimal value, as a string.\n\nThe string representation consists of an optional sign, `+` (`U+002B`)\nor `-` (`U+002D`), followed by a sequence of zero or more decimal digits\n(\"the integer\"), optionally followed by a fraction, optionally followed\nby an exponent.\n\nThe fraction consists of a decimal point followed by zero or more decimal\ndigits. The string must contain at least one digit in either the integer\nor the fraction. The number formed by the sign, the integer and the\nfraction is referred to as the significand.\n\nThe exponent consists of the character `e` (`U+0065`) or `E` (`U+0045`)\nfollowed by one or more decimal digits.\n\nServices **should** normalize decimal values before storing them by:\n\n  - Removing an explicitly-provided `+` sign (`+2.5` -\u003e `2.5`).\n  - Replacing a zero-length integer value with `0` (`.5` -\u003e `0.5`).\n  - Coercing the exponent character to lower-case (`2.5E8` -\u003e `2.5e8`).\n  - Removing an explicitly-provided zero exponent (`2.5e0` -\u003e `2.5`).\n\nServices **may** perform additional normalization based on its own needs\nand the internal decimal implementation selected, such as shifting the\ndecimal point and exponent value together (example: `2.5e-1` \u003c-\u003e `0.25`).\nAdditionally, services **may** preserve trailing zeroes in the fraction\nto indicate increased precision, but are not required to do so.\n\nNote that only the `.` character is supported to divide the integer\nand the fraction; `,` **should not** be supported regardless of locale.\nAdditionally, thousand separators **should not** be supported. If a\nservice does support them, values **must** be normalized.\n\nThe ENBF grammar is:\n\n    DecimalString =\n      [Sign] Significand [Exponent];\n\n    Sign = '+' | '-';\n\n    Significand =\n      Digits ['.'] [Digits] | [Digits] '.' Digits;\n\n    Exponent = ('e' | 'E') [Sign] Digits;\n\n    Digits = { '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' };\n\nServices **should** clearly document the range of supported values, the\nmaximum supported precision (total number of digits), and, if applicable,\nthe scale (number of digits after the decimal point), as well as how it\nbehaves when receiving out-of-bounds values.\n\nServices **may** choose to accept values passed as input even when the\nvalue has a higher precision or scale than the service supports, and\n**should** round the value to fit the supported scale. Alternatively, the\nservice **may** error with `400 Bad Request` (`INVALID_ARGUMENT` in gRPC)\nif precision would be lost.\n\nServices **should** error with `400 Bad Request` (`INVALID_ARGUMENT` in\ngRPC) if the service receives a value outside of the supported range."
+        }
+      },
+      "description": "A representation of a decimal value, such as 2.5. Clients may convert values\ninto language-native decimal formats, such as Java's [BigDecimal][] or\nPython's [decimal.Decimal][].\n\n[BigDecimal]:\nhttps://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/math/BigDecimal.html\n[decimal.Decimal]: https://docs.python.org/3/library/decimal.html"
+    },
+    "typeMoney": {
+      "type": "object",
+      "properties": {
+        "currencyCode": {
+          "type": "string",
+          "description": "The three-letter currency code defined in ISO 4217."
+        },
+        "units": {
+          "type": "string",
+          "format": "int64",
+          "description": "The whole units of the amount.\nFor example if `currencyCode` is `\"USD\"`, then 1 unit is one US dollar."
+        },
+        "nanos": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Number of nano (10^-9) units of the amount.\nThe value must be between -999,999,999 and +999,999,999 inclusive.\nIf `units` is positive, `nanos` must be positive or zero.\nIf `units` is zero, `nanos` can be positive, zero, or negative.\nIf `units` is negative, `nanos` must be negative or zero.\nFor example $-1.75 is represented as `units`=-1 and `nanos`=-750,000,000."
+        }
+      },
+      "description": "Represents an amount of money with its currency type."
+    },
+    "v1BillItem": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "pricePerOne": {
+          "$ref": "#/definitions/typeMoney"
+        },
+        "quantity": {
+          "$ref": "#/definitions/typeDecimal"
+        },
+        "type": {
+          "type": "string",
+          "format": "int64"
+        },
+        "shares": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1BillShare"
+          }
+        }
+      }
+    },
+    "v1BillPayment": {
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "format": "int64"
+        },
+        "amount": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "v1BillShare": {
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "format": "int64"
+        },
+        "share": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
+    "v1NewBillRequest": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1BillItem"
+          }
+        },
+        "payments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1BillPayment"
+          }
+        }
+      }
+    },
+    "v1NewBillResponse": {
+      "type": "object",
+      "properties": {
+        "billId": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
+    "v1NewUserRequest": {
+      "type": "object"
+    },
+    "v1NewUserResponse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "int64"
         }
       }
     }

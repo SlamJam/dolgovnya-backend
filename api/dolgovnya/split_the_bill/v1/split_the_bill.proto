@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package dolgovnya.split_the_bill.v1;
+
+import "google/type/decimal.proto";
+import "google/type/money.proto";
+
+message BillShare {
+  int64 user_id = 1;
+  uint64 share = 2;
+}
+
+message BillItem {
+  string title = 1;
+  google.type.Money price_per_one = 2;
+  google.type.Decimal quantity = 3;
+  int64 type = 4;
+  repeated BillShare shares = 5;
+}
+
+message BillPayment {
+  int64 user_id = 1;
+  int64 amount = 2;
+}
+
+message NewBillRequest {
+  repeated BillItem items = 1;
+  repeated BillPayment payments = 2;
+}
+
+message NewBillResponse {
+  uint64 bill_id = 1;
+}
+
+service SplitTheBillService {
+  rpc NewBill(NewBillRequest) returns (NewBillResponse);
+}

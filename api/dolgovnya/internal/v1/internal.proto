@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package dolgovnya.internal.v1;
+
+// import "google/protobuf/empty.proto";
+
+message NewUserResponse {
+  sint64 id = 1;
+}
+
+message NewUserRequest {}
+
+service InternalService {
+  rpc NewUser(NewUserRequest) returns (NewUserResponse);
+}

@@ -5,13 +5,13 @@ import (
 
 	"github.com/SlamJam/dolgovnya-backend/internal/app/models"
 	"github.com/SlamJam/dolgovnya-backend/internal/app/services"
-	"github.com/SlamJam/dolgovnya-backend/internal/pb"
-	"github.com/SlamJam/dolgovnya-backend/internal/pb/pbconnect"
+	split_the_billv1 "github.com/SlamJam/dolgovnya-backend/internal/pb/dolgovnya/split_the_bill/v1"
+	"github.com/SlamJam/dolgovnya-backend/internal/pb/dolgovnya/split_the_bill/v1/split_the_billv1connect"
 	"github.com/bufbuild/connect-go"
 )
 
 type SplitTheBillServiceHandler struct {
-	pbconnect.UnimplementedSplitTheBillServiceHandler
+	split_the_billv1connect.UnimplementedSplitTheBillServiceHandler
 	service *services.SplitTheBillService
 }
 
@@ -19,20 +19,44 @@ func NewSplitTheBillServiceHandler() *SplitTheBillServiceHandler {
 	return &SplitTheBillServiceHandler{}
 }
 
-func (h *SplitTheBillServiceHandler) NewBillSplit(ctx context.Context, req *connect.Request[pb.SplitRequest]) (*connect.Response[pb.SplitResponse], error) {
+// var rules := NewRules(rulez.AUTHZ)
+func (h *SplitTheBillServiceHandler) NewBillSplit(ctx context.Context, req *connect.Request[split_the_billv1.NewBillRequest]) (*connect.Response[split_the_billv1.NewBillResponse], error) {
 	userID, err := userIDFromRequest(req)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnauthenticated, err)
 	}
 
-	// checkPermissions()
+	// TODO:
+	// err := checkPermissions(userID, rules)
+	// if err != nil {
+	// 	return nil, connect.NewError(connect.CodePermissionDenied, err)
+	// }
 
+	// DTO -> domain model
 	bill := models.Bill{}
-
 	bill.Items = make([]models.BillItem, 0, len(req.Msg.Items))
 	for _, item := range req.Msg.Items {
-		bill.Items = append(bill.Items, models.BillItem{
+		billItem := models.BillItem{
 			Title: item.Title,
+			// PricePerOne: ,
+			// Quantity: item.Quantity.,
+			// Type: uint8(item.Type), // if item.Type > 255 raise
+		}
+		for _, share := range item.Shares {
+			// _ = share
+			billItem.Shares = append(billItem.Shares, models.BillShare{
+				UserID: models.UserID(share.UserId),
+				Share:  uint32(share.Share),
+			})
+		}
+
+		bill.Items = append(bill.Items, billItem)
+	}
+
+	for _, payment := range req.Msg.Payments {
+		bill.Payments = append(bill.Payments, models.BillPayment{
+			UserID: models.UserID(payment.UserId),
+			// Amount: payment.Amount,
 		})
 	}
 
@@ -42,8 +66,8 @@ func (h *SplitTheBillServiceHandler) NewBillSplit(ctx context.Context, req *conn
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
-	resp := connect.NewResponse(&pb.SplitResponse{
-		Id: uint64(billID),
+	resp := connect.NewResponse(&split_the_billv1.NewBillResponse{
+		BillId: uint64(billID),
 	})
 
 	return resp, nil

@@ -2,9 +2,9 @@
 // versions:
 // - protoc-gen-go-grpc v1.3.0
 // - protoc             (unknown)
-// source: split_the_bill.proto
+// source: dolgovnya/split_the_bill/v1/split_the_bill.proto
 
-package pb
+package split_the_billv1
 
 import (
 	context "context"
@@ -19,14 +19,14 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	SplitTheBillService_NewBillSplit_FullMethodName = "/SplitTheBillService/NewBillSplit"
+	SplitTheBillService_NewBill_FullMethodName = "/dolgovnya.split_the_bill.v1.SplitTheBillService/NewBill"
 )
 
 // SplitTheBillServiceClient is the client API for SplitTheBillService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type SplitTheBillServiceClient interface {
-	NewBillSplit(ctx context.Context, in *SplitRequest, opts ...grpc.CallOption) (*SplitResponse, error)
+	NewBill(ctx context.Context, in *NewBillRequest, opts ...grpc.CallOption) (*NewBillResponse, error)
 }
 
 type splitTheBillServiceClient struct {
@@ -37,9 +37,9 @@ func NewSplitTheBillServiceClient(cc grpc.ClientConnInterface) SplitTheBillServi
 	return &splitTheBillServiceClient{cc}
 }
 
-func (c *splitTheBillServiceClient) NewBillSplit(ctx context.Context, in *SplitRequest, opts ...grpc.CallOption) (*SplitResponse, error) {
-	out := new(SplitResponse)
-	err := c.cc.Invoke(ctx, SplitTheBillService_NewBillSplit_FullMethodName, in, out, opts...)
+func (c *splitTheBillServiceClient) NewBill(ctx context.Context, in *NewBillRequest, opts ...grpc.CallOption) (*NewBillResponse, error) {
+	out := new(NewBillResponse)
+	err := c.cc.Invoke(ctx, SplitTheBillService_NewBill_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +50,7 @@ func (c *splitTheBillServiceClient) NewBillSplit(ctx context.Context, in *SplitR
 // All implementations must embed UnimplementedSplitTheBillServiceServer
 // for forward compatibility
 type SplitTheBillServiceServer interface {
-	NewBillSplit(context.Context, *SplitRequest) (*SplitResponse, error)
+	NewBill(context.Context, *NewBillRequest) (*NewBillResponse, error)
 	mustEmbedUnimplementedSplitTheBillServiceServer()
 }
 
@@ -58,8 +58,8 @@ type SplitTheBillServiceServer interface {
 type UnimplementedSplitTheBillServiceServer struct {
 }
 
-func (UnimplementedSplitTheBillServiceServer) NewBillSplit(context.Context, *SplitRequest) (*SplitResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method NewBillSplit not implemented")
+func (UnimplementedSplitTheBillServiceServer) NewBill(context.Context, *NewBillRequest) (*NewBillResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method NewBill not implemented")
 }
 func (UnimplementedSplitTheBillServiceServer) mustEmbedUnimplementedSplitTheBillServiceServer() {}
 
@@ -74,20 +74,20 @@ func RegisterSplitTheBillServiceServer(s grpc.ServiceRegistrar, srv SplitTheBill
 	s.RegisterService(&SplitTheBillService_ServiceDesc, srv)
 }
 
-func _SplitTheBillService_NewBillSplit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SplitRequest)
+func _SplitTheBillService_NewBill_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NewBillRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SplitTheBillServiceServer).NewBillSplit(ctx, in)
+		return srv.(SplitTheBillServiceServer).NewBill(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: SplitTheBillService_NewBillSplit_FullMethodName,
+		FullMethod: SplitTheBillService_NewBill_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SplitTheBillServiceServer).NewBillSplit(ctx, req.(*SplitRequest))
+		return srv.(SplitTheBillServiceServer).NewBill(ctx, req.(*NewBillRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -96,14 +96,14 @@ func _SplitTheBillService_NewBillSplit_Handler(srv interface{}, ctx context.Cont
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var SplitTheBillService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "SplitTheBillService",
+	ServiceName: "dolgovnya.split_the_bill.v1.SplitTheBillService",
 	HandlerType: (*SplitTheBillServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "NewBillSplit",
-			Handler:    _SplitTheBillService_NewBillSplit_Handler,
+			MethodName: "NewBill",
+			Handler:    _SplitTheBillService_NewBill_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "split_the_bill.proto",
+	Metadata: "dolgovnya/split_the_bill/v1/split_the_bill.proto",
 }

@@ -1,0 +1,4 @@
+version: v1
+name: buf.build/dolgovnya/api
+deps:
+  - buf.build/googleapis/googleapis
