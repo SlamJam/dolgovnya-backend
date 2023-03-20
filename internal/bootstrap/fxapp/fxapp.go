@@ -3,22 +3,51 @@ package fxapp
 import (
 	"context"
 
-	"github.com/SlamJam/dolgovnya-backend/internal/app/services"
-	"github.com/SlamJam/dolgovnya-backend/internal/app/storage/pgsql"
 	"github.com/SlamJam/dolgovnya-backend/internal/bootstrap/fxconfig"
 	"github.com/SlamJam/dolgovnya-backend/internal/bootstrap/fxstorage"
 	"go.uber.org/fx"
+	"go.uber.org/fx/fxevent"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
-func newSplitTheBillStorage(lc fx.Lifecycle, s *pgsql.Storage) services.SplitTheBillStorage {
-	return s
+func NewApp(opts ...fx.Option) *fx.App {
+	return fx.New(
+		append(opts,
+			Module,
+			// Заглушаем всё, что ниже WARN
+			fx.WithLogger(func(log *zap.Logger) fxevent.Logger {
+				return &fxevent.ZapLogger{Logger: log.WithOptions(zap.IncreaseLevel(zap.WarnLevel))}
+			}),
+		)...,
+	)
 }
 
 var Module = fx.Module("app",
 	fxstorage.Module,
 	fxconfig.Module,
-	fx.Provide(newSplitTheBillStorage),
+	fx.Provide(NewZapLogger),
+	fx.Provide(NewContext),
 )
+
+func NewContext(lc fx.Lifecycle) context.Context {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	lc.Append(fx.Hook{
+		OnStop: func(ctx context.Context) error {
+			cancel()
+			return nil
+		},
+	})
+
+	return ctx
+}
+
+func NewZapLogger() (*zap.Logger, error) {
+	config := zap.NewDevelopmentConfig()
+	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	return config.Build()
+}
 
 func PopulateFromApp(ctx context.Context, pointers ...any) (func() error, error) {
 	opts := make([]fx.Option, 0, len(pointers)+1)
@@ -28,7 +57,7 @@ func PopulateFromApp(ctx context.Context, pointers ...any) (func() error, error)
 		opts = append(opts, fx.Populate(p))
 	}
 
-	app := fx.New(opts...)
+	app := NewApp(opts...)
 
 	if err := app.Start(ctx); err != nil {
 		return nil, err
