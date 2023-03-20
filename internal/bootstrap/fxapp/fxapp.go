@@ -2,9 +2,12 @@ package fxapp
 
 import (
 	"context"
+	"os"
 
+	"github.com/SlamJam/dolgovnya-backend/internal/app/config"
 	"github.com/SlamJam/dolgovnya-backend/internal/bootstrap/fxconfig"
 	"github.com/SlamJam/dolgovnya-backend/internal/bootstrap/fxstorage"
+	"github.com/rs/zerolog"
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxevent"
 	"go.uber.org/zap"
@@ -27,6 +30,7 @@ var Module = fx.Module("app",
 	fxstorage.Module,
 	fxconfig.Module,
 	fx.Provide(NewZapLogger),
+	fx.Provide(NewZeroLogger),
 	fx.Provide(NewContext),
 )
 
@@ -43,7 +47,7 @@ func NewContext(lc fx.Lifecycle) context.Context {
 	return ctx
 }
 
-func NewZapLogger(lc fx.Lifecycle) (*zap.Logger, error) {
+func NewZapLogger(lc fx.Lifecycle, cfg config.Config) (*zap.Logger, error) {
 	config := zap.NewDevelopmentConfig()
 	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	logger, err := config.Build()
@@ -59,6 +63,19 @@ func NewZapLogger(lc fx.Lifecycle) (*zap.Logger, error) {
 	})
 
 	return logger, nil
+}
+
+func NewZeroLogger(cfg config.Config) zerolog.Logger {
+	var logger zerolog.Logger
+
+	if cfg.IsLocalRun {
+		output := zerolog.NewConsoleWriter()
+		logger = zerolog.New(output).With().Timestamp().Logger()
+	} else {
+		logger = zerolog.New(os.Stdout).With().Timestamp().Logger()
+	}
+
+	return logger
 }
 
 func PopulateFromApp(ctx context.Context, pointers ...any) (func() error, error) {

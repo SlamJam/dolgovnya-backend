@@ -3,14 +3,16 @@ package cmd
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"strings"
 
 	"github.com/SlamJam/dolgovnya-backend/internal/app/config"
 	"github.com/SlamJam/dolgovnya-backend/internal/bootstrap/fxapp"
 	"github.com/SlamJam/dolgovnya-backend/migrations"
 	"github.com/pressly/goose/v3"
+	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"go.uber.org/fx"
-	"go.uber.org/zap"
 )
 
 func init() {
@@ -22,44 +24,69 @@ func init() {
 	rootCmd.AddCommand(migrationCmd)
 }
 
-type gooseZap struct {
-	zapLogger *zap.SugaredLogger
+type gooseLog struct {
+	// zapLogger *zap.SugaredLogger
+	logger zerolog.Logger
 }
 
-func (gz *gooseZap) Fatal(v ...interface{}) {
-	gz.zapLogger.Fatal(v...)
-}
-func (gz *gooseZap) Fatalf(format string, v ...interface{}) {
-	gz.zapLogger.Fatalf(format, v...)
-}
-func (gz *gooseZap) Print(v ...interface{}) {
-	gz.zapLogger.Info(v...)
-}
-func (gz *gooseZap) Println(v ...interface{}) {
-	gz.zapLogger.Info(v...)
-}
-func (gz *gooseZap) Printf(format string, v ...interface{}) {
-	gz.zapLogger.Infof(format, v...)
-}
-
-func zapLoggerToGooseLogger(logger *zap.Logger) goose.Logger {
-	return &gooseZap{zapLogger: logger.Sugar()}
-}
-
-func initGooseAndDB(cfg config.Config, logger *zap.Logger) (*sql.DB, error) {
-	db, err := sql.Open("pgx", cfg.DSN)
-	if err != nil {
-		return nil, err
+// getMessage format with Sprint, Sprintf, or neither.
+func getMessage(template string, fmtArgs []interface{}) string {
+	if len(fmtArgs) == 0 {
+		return template
 	}
 
-	if err := goose.SetDialect("postgres"); err != nil {
-		return nil, err
+	if template != "" {
+		return fmt.Sprintf(template, fmtArgs...)
 	}
 
-	goose.SetBaseFS(migrations.FS)
-	goose.SetLogger(zapLoggerToGooseLogger(logger))
+	if len(fmtArgs) == 1 {
+		if str, ok := fmtArgs[0].(string); ok {
+			return str
+		}
+	}
+	return fmt.Sprint(fmtArgs...)
+}
 
-	return db, nil
+// getMessageln format with Sprintln.
+func getMessageln(fmtArgs []interface{}) string {
+	msg := fmt.Sprintln(fmtArgs...)
+	return msg[:len(msg)-1]
+}
+
+func (l *gooseLog) Fatal(v ...interface{}) {
+	l.logger.Fatal().Msg(getMessage("", v))
+}
+func (gz *gooseLog) Fatalf(format string, v ...interface{}) {
+	gz.logger.Fatal().Msg(getMessage(format, v))
+}
+func (gz *gooseLog) Print(v ...interface{}) {
+	gz.logger.Info().Msg(getMessage("", v))
+}
+func (gz *gooseLog) Println(v ...interface{}) {
+	gz.logger.Info().Msg(getMessageln(v))
+}
+func (gz *gooseLog) Printf(format string, v ...interface{}) {
+	gz.logger.Info().Msg(getMessage(strings.TrimSpace(format), v))
+}
+
+func newGooseLogger(logger zerolog.Logger) goose.Logger {
+	return &gooseLog{logger: logger}
+}
+
+func runCmdInAppContainer[T any](cmd func(T) error) (result error) {
+	fxapp.NewApp(
+		fx.Provide(newGooseLogger),
+		fx.Invoke(
+			func(params T) {
+				result = cmd(params)
+			},
+			func(shutdowner fx.Shutdowner) {
+				shutdowner.Shutdown()
+			},
+		),
+	).Run()
+
+	return result
 }
 
 type gooseParams struct {
@@ -67,42 +94,30 @@ type gooseParams struct {
 
 	Ctx    context.Context
 	Cfg    config.Config
-	Logger *zap.Logger
-}
-
-type gooseCmdFunc func(gooseParams) error
-
-func runGooseCmdInAppContainer(f gooseCmdFunc) (result error) {
-	executor := func(p gooseParams) {
-		result = f(p)
-	}
-
-	fxapp.NewApp(
-		fx.Invoke(
-			executor,
-			func(shutdowner fx.Shutdowner) { shutdowner.Shutdown() },
-		),
-	).Run()
-
-	return result
+	Logger goose.Logger
 }
 
 type gooseSimpleCommand func(*sql.DB, string, ...goose.OptionsFunc) error
 
-func wrapSimpleGooseCommand(f gooseSimpleCommand) gooseCmdFunc {
-	return func(p gooseParams) error {
-		db, err := initGooseAndDB(p.Cfg, p.Logger)
-		if err != nil {
-			return err
-		}
+func execSimpleGooseCommand(gooseCmd gooseSimpleCommand) error {
+	return runCmdInAppContainer(
+		func(p gooseParams) error {
+			// goose.OpenDBWithDriver()
+			db, err := sql.Open("pgx", p.Cfg.DSN)
+			if err != nil {
+				return err
+			}
 
-		return f(db, ".")
-	}
-}
+			if err := goose.SetDialect("postgres"); err != nil {
+				return err
+			}
 
-func execSimpleGooseCommand(f gooseSimpleCommand) error {
-	return runGooseCmdInAppContainer(
-		wrapSimpleGooseCommand(f),
+			goose.SetBaseFS(migrations.FS)
+			goose.SetLogger(p.Logger)
+			goose.SetVerbose(verbose)
+
+			return gooseCmd(db, ".")
+		},
 	)
 }
 

@@ -1,5 +1,6 @@
 package config
 
 type Config struct {
-	DSN string
+	IsLocalRun bool
+	DSN        string
 }

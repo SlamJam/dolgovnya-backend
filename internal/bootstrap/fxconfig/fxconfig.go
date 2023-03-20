@@ -7,7 +7,8 @@ import (
 
 func NewConfig() (config.Config, error) {
 	return config.Config{
-		DSN: "postgresql://postgres@localhost",
+		IsLocalRun: true,
+		DSN:        "postgresql://postgres@localhost",
 	}, nil
 }
 
