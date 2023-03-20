@@ -43,10 +43,22 @@ func NewContext(lc fx.Lifecycle) context.Context {
 	return ctx
 }
 
-func NewZapLogger() (*zap.Logger, error) {
+func NewZapLogger(lc fx.Lifecycle) (*zap.Logger, error) {
 	config := zap.NewDevelopmentConfig()
 	config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
-	return config.Build()
+	logger, err := config.Build()
+	if err != nil {
+		return nil, err
+	}
+
+	lc.Append(fx.Hook{
+		OnStop: func(ctx context.Context) error {
+			_ = logger.Sync()
+			return nil
+		},
+	})
+
+	return logger, nil
 }
 
 func PopulateFromApp(ctx context.Context, pointers ...any) (func() error, error) {
