@@ -3,6 +3,7 @@ package fxapp
 import (
 	"context"
 	"os"
+	"time"
 
 	"github.com/SlamJam/dolgovnya-backend/internal/app/config"
 	"github.com/SlamJam/dolgovnya-backend/internal/bootstrap/fxconfig"
@@ -70,6 +71,7 @@ func NewZeroLogger(cfg config.Config) zerolog.Logger {
 
 	if cfg.IsLocalRun {
 		output := zerolog.NewConsoleWriter()
+		output.TimeFormat = time.TimeOnly
 		logger = zerolog.New(output).With().Timestamp().Logger()
 	} else {
 		logger = zerolog.New(os.Stdout).With().Timestamp().Logger()

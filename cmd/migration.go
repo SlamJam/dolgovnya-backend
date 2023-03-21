@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/SlamJam/dolgovnya-backend/cmd/cli"
 	"github.com/SlamJam/dolgovnya-backend/internal/app/config"
 	"github.com/SlamJam/dolgovnya-backend/internal/bootstrap/fxapp"
+	"github.com/SlamJam/dolgovnya-backend/internal/bootstrap/fxcli"
 	"github.com/SlamJam/dolgovnya-backend/migrations"
 	"github.com/pressly/goose/v3"
-	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"go.uber.org/fx"
 )
@@ -26,7 +27,7 @@ func init() {
 
 type gooseLog struct {
 	// zapLogger *zap.SugaredLogger
-	logger zerolog.Logger
+	logger cli.Logger
 }
 
 // getMessage format with Sprint, Sprintf, or neither.
@@ -57,6 +58,7 @@ func (l *gooseLog) Fatal(v ...interface{}) {
 	l.logger.Fatal().Msg(getMessage("", v))
 }
 func (gz *gooseLog) Fatalf(format string, v ...interface{}) {
+	format = strings.TrimSpace(format)
 	gz.logger.Fatal().Msg(getMessage(format, v))
 }
 func (gz *gooseLog) Print(v ...interface{}) {
@@ -66,15 +68,17 @@ func (gz *gooseLog) Println(v ...interface{}) {
 	gz.logger.Info().Msg(getMessageln(v))
 }
 func (gz *gooseLog) Printf(format string, v ...interface{}) {
-	gz.logger.Info().Msg(getMessage(strings.TrimSpace(format), v))
+	format = strings.TrimSpace(format)
+	gz.logger.Info().Msg(getMessage(format, v))
 }
 
-func newGooseLogger(logger zerolog.Logger) goose.Logger {
+func newGooseLogger(logger cli.Logger) goose.Logger {
 	return &gooseLog{logger: logger}
 }
 
 func runCmdInAppContainer[T any](cmd func(T) error) (result error) {
 	fxapp.NewApp(
+		fxcli.Module,
 		fx.Provide(newGooseLogger),
 		fx.Invoke(
 			func(params T) {
