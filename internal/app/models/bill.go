@@ -5,7 +5,6 @@ import (
 	"math/big"
 
 	"github.com/pkg/errors"
-	"github.com/shopspring/decimal"
 	"go.uber.org/multierr"
 )
 
@@ -18,59 +17,14 @@ var (
 )
 
 const (
-	maxIntFloat64     = float64(1 << 53)
-	BillSchemaVersion = 1
+	maxIntFloat64            = float64(1 << 53)
+	CurrentBillSchemaVersion = 1
 )
 
-type BillShare struct {
-	UserID UserID
-	Share  uint32
-}
-
-type BillPayment struct {
-	UserID UserID
-	Amount Money
-}
-
-type BillItem struct {
-	Title       string
-	PricePerOne Money
-	Quantity    uint
-	Type        uint8
-	Shares      []BillShare
-}
-
-func (bi *BillItem) TotalPrice() Money {
-	return Money{bi.PricePerOne.Mul(decimal.NewFromInt(int64(bi.Quantity)))}
-}
-
-func (bi *BillItem) TotalShare() int64 {
-	var totalShare int64
-	for _, share := range bi.Shares {
-		totalShare += int64(share.Share)
-	}
-
-	return totalShare
-}
-
-func (bi *BillItem) SharePricesByUser() map[UserID]MoneyRat {
-	res := map[UserID]MoneyRat{}
-	price := bi.TotalPrice().Rat()
-	totalShare := bi.TotalShare()
-
-	for _, share := range bi.Shares {
-		ratio := big.NewRat(int64(share.Share), totalShare)
-		sharePrice := MoneyRat{NewMoneyRat().Mul(price, ratio)}
-
-		old := NewMoneyRat()
-		if v, ok := res[share.UserID]; ok {
-			old = v
-		}
-
-		res[share.UserID] = MoneyRat{old.Add(old.Rat, sharePrice.Rat)}
-	}
-
-	return res
+type Bill struct {
+	ID       BillID        `json:"-"`
+	Items    []BillItem    `json:",omitempty"`
+	Payments []BillPayment `json:",omitempty"`
 }
 
 type BillID int64
@@ -79,14 +33,8 @@ func (bid BillID) String() string {
 	return fmt.Sprintf("BillID(%d)", bid)
 }
 
-type Bill struct {
-	ID       BillID        `json:"-"`
-	Items    []BillItem    `json:",omitempty"`
-	Payments []BillPayment `json:",omitempty"`
-}
-
 func (b *Bill) GetSchemaVersion() int {
-	return BillSchemaVersion
+	return CurrentBillSchemaVersion
 }
 
 func (b *Bill) TotalPayment() Money {
@@ -98,21 +46,38 @@ func (b *Bill) TotalPayment() Money {
 	return totalPayment
 }
 
-func (b *Bill) Validate() error {
-	var totalPrice Money
-	for itemIndex, item := range b.Items {
-		switch {
-		case item.Quantity < 1:
-			return errors.Wrapf(ErrZeroQuantity, "item at index %d has no quantity", itemIndex)
-
-		case len(item.Shares) == 0:
-			return errors.Wrapf(ErrNoShares, "item at index %d has no shares", itemIndex)
-		}
-
+func (b *Bill) TotalPrice() Money {
+	totalPrice := NewMoney()
+	for _, item := range b.Items {
 		totalPrice.Decimal = totalPrice.Add(item.TotalPrice().Decimal)
 	}
 
+	return totalPrice
+}
+
+func (b *Bill) Validate() error {
+	for index, item := range b.Items {
+		if err := item.Validate(); err != nil {
+			return errors.Wrapf(err, "item at index %d is invalid", index)
+		}
+	}
+
+	for index, p := range b.Payments {
+		if err := p.Validate(); err != nil {
+			return errors.Wrapf(err, "payment at index %d is invalid", index)
+		}
+	}
+
+	totalPrice := b.TotalPrice()
+	if err := totalPrice.Validate(); err != nil {
+		return errors.Wrapf(err, "TotalPrice has error")
+	}
+
 	totalPayment := b.TotalPayment()
+	if err := totalPayment.Validate(); err != nil {
+		return errors.Wrapf(ErrMoneyPrecision, "TotalPayment has error")
+	}
+
 	if !totalPayment.Equal(totalPrice.Decimal) {
 		return errors.Wrapf(ErrDiscrepancy, "total price: %s, total payments: %s", totalPrice, totalPayment)
 	}

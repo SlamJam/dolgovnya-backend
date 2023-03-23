@@ -1,13 +1,19 @@
 package models
 
 import (
+	"math"
 	"math/big"
 
+	"github.com/pkg/errors"
 	"github.com/shopspring/decimal"
 )
 
 const (
 	MoneyPrecision = 2
+)
+
+var (
+	ErrMoneyPrecision = errors.Errorf("target's exponent greater then %d", MoneyPrecision)
 )
 
 // Деньги для БД. Конечный результат цепочки вычислений. То, сколько нужно пересести.
@@ -21,6 +27,13 @@ func NewMoney() Money {
 
 func NewMoneyFromBig(v *big.Int) Money {
 	return Money{NewMoney().Add(decimal.NewFromBigInt(v, 0))}
+}
+
+func (m Money) Validate() error {
+	if math.Abs(float64(m.Exponent())) > MoneyPrecision {
+		return ErrMoneyPrecision
+	}
+	return nil
 }
 
 // Тип для вычисления с деньгами. Абсолютная точность в операциях.
