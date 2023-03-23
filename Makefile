@@ -10,6 +10,7 @@ define assert_nonempty
   $(if $(strip $(1)),,$(error $(2)))
 endef
 
+# First target is default
 .PHONY: all
 all: build
 
@@ -41,6 +42,7 @@ proto/generate: proto/lint
 
 .PHONY: build
 build:
+	$(info Building...)
 	@ go build -o ./bin/dolgovnya .
 
 .PHONY: local/up
@@ -49,12 +51,10 @@ local/up:
 
 .PHONY: local/down
 local/down:
-	@ echo down
 	@ ${COMPOSE} -f .local/docker-compose.yaml down
 
 .PHONY: local/prune
 local/prune:
-	@ echo prune
 	@ ${COMPOSE} -f .local/docker-compose.yaml down -v
 
 .PHONY:local/cleanstate
