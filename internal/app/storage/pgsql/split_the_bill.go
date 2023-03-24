@@ -107,9 +107,6 @@ func (s *Storage) SaveSplittedBill(ctx context.Context, ownerID models.UserID, b
 		)
 	}
 
-	sql, args := q.MustSql()
-	_, _ = sql, args
-
 	rows, err := q.RunWith(tx).Query()
 	if err != nil {
 		return 0, errors.WithStack(err)

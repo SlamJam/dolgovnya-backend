@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/SlamJam/dolgovnya-backend/internal/app/config"
+	"github.com/SlamJam/dolgovnya-backend/internal/app/logger"
 	"github.com/SlamJam/dolgovnya-backend/internal/bootstrap/fxconfig"
 	"github.com/SlamJam/dolgovnya-backend/internal/bootstrap/fxstorage"
 	"github.com/rs/zerolog"
@@ -66,18 +67,18 @@ func NewZapLogger(lc fx.Lifecycle, cfg config.Config) (*zap.Logger, error) {
 	return logger, nil
 }
 
-func NewZeroLogger(cfg config.Config) zerolog.Logger {
-	var logger zerolog.Logger
+func NewZeroLogger(cfg config.Config) logger.Logger {
+	var log zerolog.Logger
 
 	if cfg.IsLocalRun {
 		output := zerolog.NewConsoleWriter()
 		output.TimeFormat = time.TimeOnly
-		logger = zerolog.New(output).With().Timestamp().Logger()
+		log = zerolog.New(output).With().Timestamp().Logger()
 	} else {
-		logger = zerolog.New(os.Stdout).With().Timestamp().Logger()
+		log = zerolog.New(os.Stdout).With().Timestamp().Logger()
 	}
 
-	return logger
+	return &log
 }
 
 func PopulateFromApp(ctx context.Context, pointers ...any) (func() error, error) {
