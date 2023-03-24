@@ -82,14 +82,15 @@ func NewZeroLogger(cfg config.Config) logger.Logger {
 }
 
 func PopulateFromApp(ctx context.Context, pointers ...any) (func() error, error) {
-	opts := make([]fx.Option, 0, len(pointers)+1)
-	opts = append(opts, Module)
-
+	opts := make([]fx.Option, 0, len(pointers))
 	for _, p := range pointers {
 		opts = append(opts, fx.Populate(p))
 	}
 
 	app := NewApp(opts...)
+	if err := app.Err(); err != nil {
+		return nil, err
+	}
 
 	if err := app.Start(ctx); err != nil {
 		return nil, err

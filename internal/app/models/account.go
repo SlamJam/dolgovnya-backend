@@ -10,21 +10,21 @@ const (
 )
 
 type Account struct {
-	Credit MoneyRat
-	Debit  MoneyRat
+	Credit Money
+	Debit  Money
 }
 
 func NewBalance() *Account {
 	return &Account{
-		Debit:  NewMoneyRat(),
-		Credit: NewMoneyRat(),
+		Debit:  NewMoney(),
+		Credit: NewMoney(),
 	}
 }
 
-func (b *Account) AbsNet() (MoneyRat, NetKind) {
+func (b *Account) AbsNet() (Money, NetKind) {
 	var kind NetKind
 
-	diff := NewMoneyRat().Sub(b.Credit.Rat, b.Debit.Rat)
+	diff := b.Credit.Sub(b.Debit.Decimal)
 	switch diff.Sign() {
 	case -1:
 		kind = Scarcity
@@ -34,15 +34,15 @@ func (b *Account) AbsNet() (MoneyRat, NetKind) {
 		kind = Surplus
 	}
 
-	return MoneyRat{NewMoneyRat().Abs(diff)}, kind
+	return Money{diff.Abs()}, kind
 }
 
-func (b *Account) IsSurplus() (MoneyRat, bool) {
+func (b *Account) IsSurplus() (Money, bool) {
 	v, kind := b.AbsNet()
 	return v, kind == Surplus
 }
 
-func (b *Account) IsScarcity() (MoneyRat, bool) {
+func (b *Account) IsScarcity() (Money, bool) {
 	v, kind := b.AbsNet()
 	return v, kind == Scarcity
 }

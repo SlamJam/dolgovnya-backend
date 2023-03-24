@@ -7,10 +7,10 @@ import (
 
 	"github.com/SlamJam/dolgovnya-backend/internal/app/models"
 	"github.com/SlamJam/dolgovnya-backend/internal/app/services"
+	"github.com/SlamJam/dolgovnya-backend/internal/app/storage/pgsql"
 	"github.com/SlamJam/dolgovnya-backend/internal/bootstrap/fxapp"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/fx"
 )
 
 func NewMoneyFromInt(amount int64) models.Money {
@@ -18,21 +18,13 @@ func NewMoneyFromInt(amount int64) models.Money {
 }
 
 func populateFromApp(t *testing.T, pointers ...any) error {
-	opts := make([]fx.Option, 0, len(pointers)+1)
-	opts = append(opts, fxapp.Module)
-
-	for _, p := range pointers {
-		opts = append(opts, fx.Populate(p))
-	}
-
-	app := fx.New(opts...)
-
-	if err := app.Start(context.Background()); err != nil {
-		return err
+	stop, err := fxapp.PopulateFromApp(context.Background(), pointers...)
+	if err != nil {
+		return nil
 	}
 
 	t.Cleanup(func() {
-		app.Stop(context.Background())
+		_ = stop()
 	})
 
 	return nil
@@ -103,4 +95,36 @@ func TestCreateBill(t *testing.T) {
 	require.NoError(err)
 
 	fmt.Println(billID)
+}
+
+func TestUserBalances(t *testing.T) {
+	require := require.New(t)
+
+	var s *pgsql.Storage
+	require.NoError(
+		populateFromApp(t, &s),
+	)
+
+	userID := models.UserID(1)
+
+	balances, err := s.GetUserBalances(context.Background(), userID)
+	require.NoError(err)
+
+	fmt.Println(balances)
+}
+
+func TestUserAccount(t *testing.T) {
+	require := require.New(t)
+
+	var s *pgsql.Storage
+	require.NoError(
+		populateFromApp(t, &s),
+	)
+
+	userID := models.UserID(1)
+
+	acc, err := s.GetUserAccount(context.Background(), userID)
+	require.NoError(err)
+
+	fmt.Println(acc)
 }
