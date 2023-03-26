@@ -57,8 +57,12 @@ local/down:
 local/prune:
 	@ ${COMPOSE} -f .local/docker-compose.yaml down -v
 
-.PHONY:local/cleanstate
-local/cleanstate: local/prune local/up
+.PHONY: local/pg-up
+local/pg-up:
+	@ ${COMPOSE} -f .local/docker-compose.yaml up -d postgres
+
+.PHONY:local/pg-startover
+local/pg-startover: local/prune local/pg-up
 	@ go run . migration up
 
 .PHONY: docker/build

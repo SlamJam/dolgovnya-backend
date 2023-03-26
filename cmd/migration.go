@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/SlamJam/dolgovnya-backend/cmd/cli"
 	"github.com/SlamJam/dolgovnya-backend/internal/app/config"
@@ -14,9 +15,21 @@ import (
 	"github.com/pressly/goose/v3"
 	"github.com/spf13/cobra"
 	"go.uber.org/fx"
+
+	"github.com/cenkalti/backoff/v4"
 )
 
+var period time.Duration
+var timeout time.Duration
+var maxAttemps uint64
+
 func init() {
+	migrationUpRetryCmd.PersistentFlags().DurationVar(&period, "period", 1*time.Second, "Retry period")
+	migrationUpRetryCmd.Flags().DurationVar(&timeout, "timeout", 0, "Max timeout")
+	migrationUpRetryCmd.Flags().Uint64Var(&maxAttemps, "max-attemps", 0, "Max attemps")
+
+	migrationCmd.AddCommand(migrationUpRetryCmd)
+
 	migrationCmd.AddCommand(migrationUpCmd)
 	migrationCmd.AddCommand(migrationUpByOneCmd)
 	migrationCmd.AddCommand(migrationVersionCmd)
@@ -101,27 +114,31 @@ type gooseParams struct {
 	Logger goose.Logger
 }
 
-type gooseSimpleCommand func(*sql.DB, string, ...goose.OptionsFunc) error
+type gooseFunc func(*sql.DB, string, ...goose.OptionsFunc) error
 
-func execSimpleGooseCommand(gooseCmd gooseSimpleCommand) error {
+func cmdFromGooseFunc(gooseCmd gooseFunc) func(p gooseParams) error {
+	return func(p gooseParams) error {
+		// goose.OpenDBWithDriver()
+		db, err := sql.Open("pgx", p.Cfg.DSN)
+		if err != nil {
+			return err
+		}
+
+		if err := goose.SetDialect("postgres"); err != nil {
+			return err
+		}
+
+		goose.SetBaseFS(migrations.FS)
+		goose.SetLogger(p.Logger)
+		goose.SetVerbose(verbose)
+
+		return gooseCmd(db, ".")
+	}
+}
+
+func execSimpleGooseCommand(gooseCmd gooseFunc) error {
 	return runCmdInAppContainer(
-		func(p gooseParams) error {
-			// goose.OpenDBWithDriver()
-			db, err := sql.Open("pgx", p.Cfg.DSN)
-			if err != nil {
-				return err
-			}
-
-			if err := goose.SetDialect("postgres"); err != nil {
-				return err
-			}
-
-			goose.SetBaseFS(migrations.FS)
-			goose.SetLogger(p.Logger)
-			goose.SetVerbose(verbose)
-
-			return gooseCmd(db, ".")
-		},
+		cmdFromGooseFunc(gooseCmd),
 	)
 }
 
@@ -136,6 +153,50 @@ var migrationUpCmd = &cobra.Command{
 	Short: "Migrate the DB to the most recent version available",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return execSimpleGooseCommand(goose.Up)
+	},
+}
+
+func wrapGooseFuncWithBackoff(gooseF gooseFunc, b backoff.BackOff, notify backoff.Notify) gooseFunc {
+	return func(db *sql.DB, dir string, ops ...goose.OptionsFunc) error {
+		return backoff.RetryNotify(func() error {
+			return goose.Up(db, dir, ops...)
+		}, b, notify)
+	}
+}
+
+var migrationUpRetryCmd = &cobra.Command{
+	Use:   "up-retry",
+	Short: "Migrate the DB to the most recent version available with retries on failures",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		var b backoff.BackOff = backoff.NewConstantBackOff(period)
+
+		if timeout != 0 {
+			ctx, cancel := context.WithTimeout(context.Background(), timeout)
+			defer cancel()
+
+			b = backoff.WithContext(b, ctx)
+		}
+
+		if maxAttemps != 0 {
+			b = backoff.WithMaxRetries(b, maxAttemps)
+		}
+
+		type Params struct {
+			fx.In
+
+			GP        gooseParams
+			CliLogger cli.Logger
+		}
+
+		return runCmdInAppContainer(
+			func(params Params) error {
+				return cmdFromGooseFunc(
+					wrapGooseFuncWithBackoff(goose.Up, b, func(err error, d time.Duration) {
+						params.CliLogger.Error().Err(err).Msg("Migration fail")
+					}),
+				)(params.GP)
+			},
+		)
 	},
 }
 

@@ -2,6 +2,7 @@ package pgsql
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/Masterminds/squirrel"
@@ -68,4 +69,25 @@ func PgxCreateDB(uri string) (*sqlx.DB, error) {
 
 	pgxdb := stdlib.OpenDB(*connConfig)
 	return sqlx.NewDb(pgxdb, "pgx"), nil
+}
+
+func scanToMap[K comparable, V any](rows *sql.Rows) (map[K]V, error) {
+	result := make(map[K]V)
+
+	var k K
+	var v V
+	for rows.Next() {
+		err := rows.Scan(&k, &v)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+
+		if _, ok := result[k]; ok {
+			return nil, errors.New("query result is not unique by key")
+		}
+
+		result[k] = v
+	}
+
+	return result, nil
 }

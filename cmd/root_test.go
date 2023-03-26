@@ -3,15 +3,69 @@ package cmd_test
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/SlamJam/dolgovnya-backend/internal/app/models"
 	"github.com/SlamJam/dolgovnya-backend/internal/app/services"
 	"github.com/SlamJam/dolgovnya-backend/internal/app/storage/pgsql"
 	"github.com/SlamJam/dolgovnya-backend/internal/bootstrap/fxapp"
+	"github.com/doug-martin/goqu/v9"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
+
+	_ "github.com/doug-martin/goqu/v9/dialect/postgres"
+	"github.com/doug-martin/goqu/v9/exp"
 )
+
+func init() {
+	goqu.SetDefaultPrepared(true)
+}
+
+var psql = goqu.Dialect("postgres")
+
+type ValueExpression interface {
+	exp.Expression
+	exp.Aliaseable
+}
+
+func Values(alias string, firstVal goqu.Vals, restVals ...goqu.Vals) ValueExpression {
+	vals := make([]goqu.Vals, 0, 1+len(restVals))
+	vals = append(vals, firstVal)
+	vals = append(vals, restVals...)
+
+	var args []interface{}
+	parts := make([]string, 0, len(vals))
+	for _, val := range vals {
+		placeholders := make([]string, 0, len(val))
+		for _, v := range val {
+			args = append(args, v)
+			placeholders = append(placeholders, "?")
+		}
+
+		parts = append(parts, "("+strings.Join(placeholders, ",")+")")
+	}
+
+	return goqu.L("(VALUES "+strings.Join(parts, ",")+") AS "+alias, args...)
+}
+
+func TestSQL(t *testing.T) {
+	q := psql.Update("table_name").
+		From(
+			// goqu.L("VALUES (?, ?), (?, ?)", 1, 2, 3, 4).As("V(a,b)"),
+			Values("V(a,b)",
+				goqu.Vals{1, 2},
+				goqu.Vals{3, 4},
+			),
+		).
+		Set(goqu.Record{"foo": goqu.L("V.a")}).
+		Where(
+			goqu.C("q").Eq(goqu.L("V.b")),
+		)
+
+	query, qrgs, err := q.ToSQL()
+	_, _, _ = query, qrgs, err
+}
 
 func NewMoneyFromInt(amount int64) models.Money {
 	return models.Money{models.NewMoney().Add(decimal.NewFromInt(amount))}
@@ -105,7 +159,7 @@ func TestUserBalances(t *testing.T) {
 		populateFromApp(t, &s),
 	)
 
-	userID := models.UserID(1)
+	userID := models.UserID(5)
 
 	balances, err := s.GetUserBalances(context.Background(), userID)
 	require.NoError(err)

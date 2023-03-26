@@ -6,6 +6,8 @@ require (
 	github.com/Masterminds/squirrel v1.5.3
 	github.com/SlamJam/go-libs v0.0.0-20230315162527-0d0b053e5987
 	github.com/bufbuild/connect-go v1.5.2
+	github.com/cenkalti/backoff/v4 v4.2.0
+	github.com/doug-martin/goqu/v9 v9.18.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.15.2
 	github.com/jackc/pgx/v5 v5.3.1
 	github.com/jmoiron/sqlx v1.3.5
@@ -19,9 +21,7 @@ require (
 	go.uber.org/fx v1.19.2
 	go.uber.org/multierr v1.6.0
 	go.uber.org/zap v1.23.0
-	golang.org/x/mod v0.9.0
 	golang.org/x/net v0.8.0
-	golang.org/x/sync v0.1.0
 	google.golang.org/genproto v0.0.0-20230223222841-637eb2293923
 	google.golang.org/grpc v1.53.0
 	google.golang.org/protobuf v1.29.1
