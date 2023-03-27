@@ -8,6 +8,11 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+var (
+	ErrNoShares     = errors.New("shares are empty")
+	ErrZeroQuantity = errors.New("quantity is zero")
+)
+
 type BillItem struct {
 	Title       string
 	PricePerOne Money

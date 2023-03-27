@@ -5,15 +5,11 @@ import (
 	"math/big"
 
 	"github.com/pkg/errors"
-	"go.uber.org/multierr"
 )
 
 var (
-	ErrNoShares              = errors.New("shares are empty")
-	ErrZeroQuantity          = errors.New("quantity is zero")
-	ErrDiscrepancy           = errors.New("total price and total payments must be equal")
-	ErrInternalAssertion     = errors.New("internal assertion")
-	ErrTotalDecimalPrecision = errors.Wrap(ErrInternalAssertion, "decimal precision of total")
+	ErrDiscrepancy       = errors.New("total price and total payments must be equal")
+	ErrInternalAssertion = errors.New("internal assertion")
 )
 
 const (
@@ -75,7 +71,7 @@ func (b *Bill) Validate() error {
 
 	totalPayment := b.TotalPayment()
 	if err := totalPayment.Validate(); err != nil {
-		return errors.Wrapf(ErrMoneyPrecision, "TotalPayment has error")
+		return errors.Wrapf(err, "TotalPayment has error")
 	}
 
 	if !totalPayment.Equal(totalPrice.Decimal) {
@@ -173,9 +169,9 @@ func (b *Bill) ToInvoices() ([]Invoice, error) {
 		RoundCeil(MoneyPrecision).
 		Truncate(MoneyPrecision)
 
-	invoices, err = FixInvocesTotal(invoices, totalCreditDecimal)
+	invoices, err = FixInvocesTotal(invoices, Money{totalCreditDecimal})
 	if err != nil {
-		return nil, errors.Wrap(multierr.Append(ErrInternalAssertion, err), "error at fix total")
+		return nil, errors.Wrap(err, "error at fix total")
 	}
 
 	return invoices, nil

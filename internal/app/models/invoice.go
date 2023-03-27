@@ -1,7 +1,6 @@
 package models
 
 import (
-	"math"
 	"math/big"
 	"math/rand"
 	"sort"
@@ -112,9 +111,9 @@ func InvoicesTotal(invoices []Invoice) Money {
 	return total
 }
 
-func FixInvocesTotal(invoices []Invoice, targetTotal decimal.Decimal) ([]Invoice, error) {
-	if math.Abs(float64(targetTotal.Exponent())) > MoneyPrecision {
-		return nil, errors.New("target's exponent greater then Money's")
+func FixInvocesTotal(invoices []Invoice, targetTotal Money) ([]Invoice, error) {
+	if err := targetTotal.Validate(); err != nil {
+		return nil, errors.Wrap(err, "target total has error")
 	}
 
 	invoicesTotal := InvoicesTotal(invoices)
