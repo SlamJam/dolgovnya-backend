@@ -89,7 +89,7 @@ func InvoicesFromBalances(balancesMap map[UserID]MoneyRat) ([]Invoice, error) {
 		}
 
 		switch debt.Amount.Cmp(zeroRat) {
-		// остался долг, продолдаем
+		// остался долг, продолжаем
 		case -1:
 		// переходим к следующему дебитному балансу
 		case 0:
